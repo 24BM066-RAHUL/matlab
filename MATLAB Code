@@ -1,0 +1,85 @@
+clc;
+clear;
+close all;
+
+%% ===============================
+% STEP 1: Generate Biomedical Signal (ECG-like signal)
+% ===============================
+
+fs = 500;                     % Sampling frequency
+t = 0:1/fs:5;                 % 5 seconds duration
+ecg_signal = 1.2*sin(2*pi*1.2*t) ...
+           + 0.25*sin(2*pi*2.4*t) ...
+           + 0.1*randn(size(t));   % Add noise
+
+figure;
+plot(t, ecg_signal);
+title('24bm066 Original Biomedical Signal (ECG)');
+xlabel('Time (s)');
+ylabel('Amplitude');
+grid on;
+
+%% ===============================
+% STEP 2: Convert Signal to Integer Format
+% ===============================
+
+% Normalize between 0–255 (8-bit)
+ecg_norm = uint8(255 * mat2gray(ecg_signal));
+
+%% ===============================
+% STEP 3: AES Encryption
+% ===============================
+
+key = '1234567890123456';  % 16-byte key (AES-128)
+
+% Convert signal to byte stream
+signal_bytes = ecg_norm(:);
+
+% Create AES cipher
+cipher = javax.crypto.Cipher.getInstance('AES');
+secretKey = javax.crypto.spec.SecretKeySpec(uint8(key), 'AES');
+cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, secretKey);
+
+% Encrypt
+encrypted_bytes = cipher.doFinal(signal_bytes);
+
+%% ===============================
+% STEP 4: Simulated Transmission
+% ===============================
+
+transmitted_data = encrypted_bytes;   % Data sent securely
+
+%% ===============================
+% STEP 5: AES Decryption (Receiver Side)
+% ===============================
+
+cipher.init(javax.crypto.Cipher.DECRYPT_MODE, secretKey);
+decrypted_bytes = cipher.doFinal(transmitted_data);
+
+% Convert back to original format
+decrypted_signal = double(uint8(decrypted_bytes));
+decrypted_signal = reshape(decrypted_signal, size(ecg_norm));
+
+%% ===============================
+% STEP 6: Plot Decrypted Signal
+% ===============================
+
+figure;
+plot(t, decrypted_signal);
+title('24BM066 Decrypted Biomedical Signal');
+xlabel('Time (s)');
+ylabel('Amplitude');
+grid on;
+
+%% ===============================
+% STEP 7: Performance Evaluation
+% ===============================
+
+MSE = mean((double(ecg_norm(:)) - double(decrypted_signal(:))).^2);
+disp(['Mean Square Error (MSE): ', num2str(MSE)]);
+
+if MSE == 0
+    disp('Perfect Signal Recovery after Decryption ✅');
+else
+    disp('Error in Transmission ❌');
+end
